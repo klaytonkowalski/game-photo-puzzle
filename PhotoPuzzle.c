@@ -9,11 +9,10 @@ static const int photoWidth = 960;
 static const int photoHeight = 540;
 static const int screenWidth = 960;
 static const int screenHeight = 590;
-static const int targetFPS = 60;
+static const int targetFPS = 90;
 static const int tileSize = 60;
 static const int tileColumns = 16;
 
-static Music music;
 static Sound buttonSound;
 static Sound selectTileSound;
 static Sound swapTileSound;
@@ -26,12 +25,15 @@ static int selectedTileIndex;
 static int tiles[TILE_COUNT];
 static bool clickingNewPuzzle;
 static bool clickingSolvePuzzle;
+static bool clickingResetPuzzle;
 
 static void Initialize();
 static void Update();
 static void Draw();
 static void Terminate();
 static void ResetTiles();
+static void ScrambleTiles();
+static bool IsComplete();
 
 int main (int argc, char *argv[])
 {
@@ -50,7 +52,6 @@ static void Initialize()
     InitWindow(screenWidth, screenHeight, "Photo Puzzle");
     SetTargetFPS(targetFPS);
     InitAudioDevice();
-    music = LoadMusicStream("Assets/Music/Music.wav");
     buttonSound = LoadSound("Assets/Sounds/Button.wav");
     selectTileSound = LoadSound("Assets/Sounds/SelectTile.wav");
     swapTileSound = LoadSound("Assets/Sounds/SwapTile.wav");
@@ -69,29 +70,33 @@ static void Initialize()
     selectedTileIndex = -1;
     clickingNewPuzzle = false;
     clickingSolvePuzzle = false;
-    ResetTiles();
+    clickingResetPuzzle = false;
+    ScrambleTiles();
 }
 
 static void Update()
 {
-    if (IsKeyPressed(KEY_M))
-    {
-        IsMusicPlaying(music) ? PauseMusicStream(music) : ResumeMusicStream(music);
-    }
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         const Vector2 mousePosition = GetMousePosition();
         if (CheckCollisionPointRec(mousePosition, (Rectangle) { 10, 10, 150, 30 }))
         {
             clickingNewPuzzle = true;
-            photoIndex = (photoIndex + 1) % PHOTO_COUNT;
-            ResetTiles();
+        }
+        else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 170, 10, 150, 30 }))
+        {
+            clickingSolvePuzzle = true;
+        }
+        else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 330, 10, 150, 30 }))
+        {
+            clickingResetPuzzle = true;
         }
         else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 0, 50, photoWidth, photoHeight }))
         {
             if (selectedTileIndex == -1)
             {
                 selectedTileIndex = (int) (mousePosition.x / tileSize) + ((int) (mousePosition.y - 50) / tileSize * tileColumns);
+                PlaySound(selectTileSound);
             }
             else
             {
@@ -100,15 +105,32 @@ static void Update()
                 tiles[selectedTileIndex] = tiles[swapTileIndex];
                 tiles[swapTileIndex] = selectedTileValue;
                 selectedTileIndex = -1;
+                PlaySound(IsComplete() ? completeSound : swapTileSound);
             }
         }
     }
     else if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
     {
-        if (CheckCollisionPointRec(GetMousePosition(), (Rectangle) { 10, 10, 150, 30 }))
+        const Vector2 mousePosition = GetMousePosition();
+        if (CheckCollisionPointRec(mousePosition, (Rectangle) { 10, 10, 150, 30 }))
         {
-            clickingNewPuzzle = false;
+            photoIndex = (photoIndex + 1) % PHOTO_COUNT;
+            ScrambleTiles();
+            PlaySound(buttonSound);
         }
+        else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 170, 10, 150, 30 }))
+        {
+            ResetTiles();
+            PlaySound(buttonSound);
+        }
+        else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 330, 10, 150, 30 }))
+        {
+            ScrambleTiles();
+            PlaySound(buttonSound);
+        }
+        clickingNewPuzzle = false;
+        clickingSolvePuzzle = false;
+        clickingResetPuzzle = false;
     }
 }
 
@@ -124,12 +146,14 @@ static void Draw()
     DrawText("New Puzzle", 15, 15, 20, clickingNewPuzzle ? GRAY : WHITE);
     DrawRectangle(170, 10, 150, 30, clickingSolvePuzzle ? DARKBLUE : BLUE);
     DrawText("Solve Puzzle", 175, 15, 20, clickingSolvePuzzle ? GRAY : WHITE);
+    DrawRectangle(330, 10, 150, 30, clickingResetPuzzle ? DARKBLUE : BLUE);
+    DrawText("Reset Puzzle", 335, 15, 20, clickingResetPuzzle ? GRAY : WHITE);
     DrawLineEx((Vector2) { 0, 50 }, (Vector2) { screenWidth, 50 }, 3, DARKBLUE);
     for (int i = 0; i < TILE_COUNT; ++i)
     {
-        const Vector2 source = (Vector2) { tiles[i] % tileColumns * tileSize, tiles[i] / tileColumns * tileSize };
-        const Vector2 destination = (Vector2) { i % tileColumns * tileSize, i / tileColumns * tileSize };
-        DrawTextureRec(renderTexture.texture, (Rectangle) { source.x, source.y, tileSize, -tileSize }, (Vector2) { destination.x, destination.y + 50 }, WHITE);
+        const Vector2 source = (Vector2) { tiles[i] % tileColumns * tileSize, photoHeight - tileSize - tiles[i] / tileColumns * tileSize };
+        const Vector2 destination = (Vector2) { i % tileColumns * tileSize, i / tileColumns * tileSize + 50 };
+        DrawTextureRec(renderTexture.texture, (Rectangle) { source.x, source.y, tileSize, -tileSize }, destination, WHITE);
     }
     if (selectedTileIndex != -1)
     {
@@ -141,7 +165,6 @@ static void Draw()
 static void Terminate()
 {
     CloseWindow();
-    UnloadMusicStream(music);
     UnloadSound(buttonSound);
     UnloadSound(selectTileSound);
     UnloadSound(swapTileSound);
@@ -160,11 +183,28 @@ static void ResetTiles()
     {
         tiles[i] = i;
     }
+}
+
+static void ScrambleTiles()
+{
+    ResetTiles();
     for (int i = 0; i < TILE_COUNT; ++i)
     {
         const int swapIndex = GetRandomValue(0, TILE_COUNT - 1);
-        const int swapValue = tiles[swapIndex];
+        const int tileValue = tiles[i];
         tiles[i] = tiles[swapIndex];
-        tiles[swapIndex] = swapValue;
+        tiles[swapIndex] = tileValue;
     }
+}
+
+static bool IsComplete()
+{
+    for (int i = 0; i < TILE_COUNT; ++i)
+    {
+        if (tiles[i] != i)
+        {
+            return false;
+        }
+    }
+    return true;
 }

@@ -7,5 +7,4 @@ Please click the "Star" button on GitHub if you find this project to be interest
 
 ## Controls
 This game uses the following controls:
-  - \<M> Toggle music
   - \<Escape\> Exit application
