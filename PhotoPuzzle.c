@@ -1,9 +1,49 @@
+//////////////////////////////////////////////////////////////////////
+// LICENSE
+//////////////////////////////////////////////////////////////////////
+
+// MIT License
+
+// Copyright (c) 2021 Klayton Kowalski
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+// https://github.com/klaytonkowalski/game-photo-puzzle
+
+//////////////////////////////////////////////////////////////////////
+// INCLUDES
+//////////////////////////////////////////////////////////////////////
+
 #include "raylib.h"
 
 #include <stdio.h>
 
+//////////////////////////////////////////////////////////////////////
+// DEFINES
+//////////////////////////////////////////////////////////////////////
+
 #define PHOTO_COUNT 7
 #define TILE_COUNT 40
+
+//////////////////////////////////////////////////////////////////////
+// CONSTANTS
+//////////////////////////////////////////////////////////////////////
 
 static const int photoWidth = 960;
 static const int photoHeight = 600;
@@ -13,13 +53,20 @@ static const int targetFPS = 90;
 static const int tileSize = 120;
 static const int tileColumns = 8;
 
+//////////////////////////////////////////////////////////////////////
+// LOADED PROPERTIES
+//////////////////////////////////////////////////////////////////////
+
 static Sound buttonSound;
 static Sound selectTileSound;
 static Sound swapTileSound;
 static Sound completeSound;
 static Texture photos[PHOTO_COUNT];
 static RenderTexture renderTexture;
-static Shader colorizeShader;
+
+//////////////////////////////////////////////////////////////////////
+// PROPERTIES
+//////////////////////////////////////////////////////////////////////
 
 static int photoIndex;
 static int selectedTileIndex;
@@ -27,7 +74,10 @@ static int tiles[TILE_COUNT];
 static bool clickingNewPuzzle;
 static bool clickingSolvePuzzle;
 static bool clickingResetPuzzle;
-static bool clickingColorize;
+
+//////////////////////////////////////////////////////////////////////
+// FUNCTION PROTOTYPES
+//////////////////////////////////////////////////////////////////////
 
 static void Initialize();
 static void Update();
@@ -36,6 +86,10 @@ static void Terminate();
 static void ResetTiles();
 static void ScrambleTiles();
 static bool IsComplete();
+
+//////////////////////////////////////////////////////////////////////
+// FUNCTIONS
+//////////////////////////////////////////////////////////////////////
 
 int main (int argc, char *argv[])
 {
@@ -68,13 +122,11 @@ static void Initialize()
     photos[7] = LoadTexture("Assets/Photos/Photo8.png");
     photos[8] = LoadTexture("Assets/Photos/Photo9.png");
     renderTexture = LoadRenderTexture(photoWidth, photoHeight);
-    colorizeShader = LoadShader("Assets/Shaders/Colorize.", "");
     photoIndex = 0;
     selectedTileIndex = -1;
     clickingNewPuzzle = false;
     clickingSolvePuzzle = false;
     clickingResetPuzzle = false;
-    clickingColorize = false;
     ScrambleTiles();
 }
 
@@ -94,10 +146,6 @@ static void Update()
         else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 330, 10, 150, 30 }))
         {
             clickingResetPuzzle = true;
-        }
-        else if (CheckCollisionPointRec(mousePosition, (Rectangle) { screenWidth - 160, 10, 150, 30 }))
-        {
-            clickingColorize = true;
         }
         else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 0, 50, photoWidth, photoHeight }))
         {
@@ -136,24 +184,18 @@ static void Update()
             ScrambleTiles();
             PlaySound(buttonSound);
         }
-        else if (CheckCollisionPointRec(mousePosition, (Rectangle) { screenWidth - 160, 10, 150, 30 }))
-        {
-            // TODO: THIS
-            PlaySound(buttonSound);
-        }
         clickingNewPuzzle = false;
         clickingSolvePuzzle = false;
         clickingResetPuzzle = false;
-        clickingColorize = false;
     }
 }
 
 static void Draw()
 {
+    BeginDrawing();
     BeginTextureMode(renderTexture);
     DrawTexture(photos[photoIndex], 0, 0, WHITE);
     EndTextureMode();
-    BeginDrawing();
     ClearBackground(WHITE);
     DrawRectangle(0, 0, screenWidth, 50, SKYBLUE);
     DrawRectangle(10, 10, 150, 30, clickingNewPuzzle ? DARKBLUE : BLUE);
@@ -165,10 +207,6 @@ static void Draw()
     DrawRectangle(330, 10, 150, 30, clickingResetPuzzle ? DARKBLUE : BLUE);
     const int resetPuzzleWidth = MeasureText("Reset Puzzle", 20);
     DrawText("Reset Puzzle", 330 + (150 - resetPuzzleWidth) * 0.5, 15, 20, clickingResetPuzzle ? GRAY : WHITE);
-    DrawLineEx((Vector2) { 0, 50 }, (Vector2) { screenWidth, 50 }, 3, DARKBLUE);
-    DrawRectangle(screenWidth - 160, 10, 150, 30, clickingColorize ? DARKBLUE : BLUE);
-    const int colorizeWidth = MeasureText("Colorize", 20);
-    DrawText("Colorize", screenWidth - 160 + (150 - colorizeWidth) * 0.5, 15, 20, clickingColorize ? GRAY : WHITE);
     DrawLineEx((Vector2) { 0, 50 }, (Vector2) { screenWidth, 50 }, 3, DARKBLUE);
     for (int i = 0; i < TILE_COUNT; ++i)
     {
