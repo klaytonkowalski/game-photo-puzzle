@@ -7,4 +7,5 @@ Please click the "Star" button on GitHub if you find this project to be interest
 
 ## Controls
 This game uses the following controls:
+  - \<Left click\> Select / Swap tiles
   - \<Escape\> Exit application

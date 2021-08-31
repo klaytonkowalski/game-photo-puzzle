@@ -2,16 +2,16 @@
 
 #include <stdio.h>
 
-#define PHOTO_COUNT 9
-#define TILE_COUNT 144
+#define PHOTO_COUNT 7
+#define TILE_COUNT 40
 
 static const int photoWidth = 960;
-static const int photoHeight = 540;
+static const int photoHeight = 600;
 static const int screenWidth = 960;
-static const int screenHeight = 590;
+static const int screenHeight = 650;
 static const int targetFPS = 90;
-static const int tileSize = 60;
-static const int tileColumns = 16;
+static const int tileSize = 120;
+static const int tileColumns = 8;
 
 static Sound buttonSound;
 static Sound selectTileSound;
@@ -19,6 +19,7 @@ static Sound swapTileSound;
 static Sound completeSound;
 static Texture photos[PHOTO_COUNT];
 static RenderTexture renderTexture;
+static Shader colorizeShader;
 
 static int photoIndex;
 static int selectedTileIndex;
@@ -26,6 +27,7 @@ static int tiles[TILE_COUNT];
 static bool clickingNewPuzzle;
 static bool clickingSolvePuzzle;
 static bool clickingResetPuzzle;
+static bool clickingColorize;
 
 static void Initialize();
 static void Update();
@@ -66,11 +68,13 @@ static void Initialize()
     photos[7] = LoadTexture("Assets/Photos/Photo8.png");
     photos[8] = LoadTexture("Assets/Photos/Photo9.png");
     renderTexture = LoadRenderTexture(photoWidth, photoHeight);
+    colorizeShader = LoadShader("Assets/Shaders/Colorize.", "");
     photoIndex = 0;
     selectedTileIndex = -1;
     clickingNewPuzzle = false;
     clickingSolvePuzzle = false;
     clickingResetPuzzle = false;
+    clickingColorize = false;
     ScrambleTiles();
 }
 
@@ -90,6 +94,10 @@ static void Update()
         else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 330, 10, 150, 30 }))
         {
             clickingResetPuzzle = true;
+        }
+        else if (CheckCollisionPointRec(mousePosition, (Rectangle) { screenWidth - 160, 10, 150, 30 }))
+        {
+            clickingColorize = true;
         }
         else if (CheckCollisionPointRec(mousePosition, (Rectangle) { 0, 50, photoWidth, photoHeight }))
         {
@@ -128,9 +136,15 @@ static void Update()
             ScrambleTiles();
             PlaySound(buttonSound);
         }
+        else if (CheckCollisionPointRec(mousePosition, (Rectangle) { screenWidth - 160, 10, 150, 30 }))
+        {
+            // TODO: THIS
+            PlaySound(buttonSound);
+        }
         clickingNewPuzzle = false;
         clickingSolvePuzzle = false;
         clickingResetPuzzle = false;
+        clickingColorize = false;
     }
 }
 
@@ -143,11 +157,18 @@ static void Draw()
     ClearBackground(WHITE);
     DrawRectangle(0, 0, screenWidth, 50, SKYBLUE);
     DrawRectangle(10, 10, 150, 30, clickingNewPuzzle ? DARKBLUE : BLUE);
-    DrawText("New Puzzle", 15, 15, 20, clickingNewPuzzle ? GRAY : WHITE);
+    const int newPuzzleWidth = MeasureText("New Puzzle", 20);
+    DrawText("New Puzzle", 10 + (150 - newPuzzleWidth) * 0.5, 15, 20, clickingNewPuzzle ? GRAY : WHITE);
     DrawRectangle(170, 10, 150, 30, clickingSolvePuzzle ? DARKBLUE : BLUE);
-    DrawText("Solve Puzzle", 175, 15, 20, clickingSolvePuzzle ? GRAY : WHITE);
+    const int solvePuzzleWidth = MeasureText("Solve Puzzle", 20);
+    DrawText("Solve Puzzle", 170 + (150 - solvePuzzleWidth) * 0.5, 15, 20, clickingSolvePuzzle ? GRAY : WHITE);
     DrawRectangle(330, 10, 150, 30, clickingResetPuzzle ? DARKBLUE : BLUE);
-    DrawText("Reset Puzzle", 335, 15, 20, clickingResetPuzzle ? GRAY : WHITE);
+    const int resetPuzzleWidth = MeasureText("Reset Puzzle", 20);
+    DrawText("Reset Puzzle", 330 + (150 - resetPuzzleWidth) * 0.5, 15, 20, clickingResetPuzzle ? GRAY : WHITE);
+    DrawLineEx((Vector2) { 0, 50 }, (Vector2) { screenWidth, 50 }, 3, DARKBLUE);
+    DrawRectangle(screenWidth - 160, 10, 150, 30, clickingColorize ? DARKBLUE : BLUE);
+    const int colorizeWidth = MeasureText("Colorize", 20);
+    DrawText("Colorize", screenWidth - 160 + (150 - colorizeWidth) * 0.5, 15, 20, clickingColorize ? GRAY : WHITE);
     DrawLineEx((Vector2) { 0, 50 }, (Vector2) { screenWidth, 50 }, 3, DARKBLUE);
     for (int i = 0; i < TILE_COUNT; ++i)
     {
